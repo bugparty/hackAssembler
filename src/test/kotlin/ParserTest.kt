@@ -1,7 +1,9 @@
 import com.ifancc.jack_parser.Parser
 import com.ifancc.jack_parser.isValidJackChar
 import com.ifancc.jack_parser.isValidLine
+import com.ifancc.jack_parser.removeInlineComment
 import org.junit.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -24,5 +26,14 @@ class ParserTest {
         for(chr in failStr){
             assertFalse(isValidJackChar(chr))
         }
+    }
+    @Test
+    fun testRemoveInlineComment(){
+        val testStr1 = "D=D-M            // D = first number - second number"
+        val testStr1Result = "D=D-M"
+        assertEquals(testStr1Result, removeInlineComment(testStr1))
+        val testStr2 = "@R0"
+        val testStr2Result = testStr2
+        assertEquals(testStr2Result, removeInlineComment(testStr2))
     }
 }

@@ -30,7 +30,9 @@ fun removeInlineComment(str: String):String{
             break
         }
     }
-    i--
+    if (i!=str.length && isValidJackChar(str[i])){
+        i++
+    }
     return str.substring(0,i)
 }
 
@@ -49,7 +51,7 @@ class Parser {
                 line?.let {
                     val striped = it.trim()
                     if (isValidLine(striped)) {
-                        lines.add(striped)
+                        lines.add(removeInlineComment(striped))
                     }
                 }
 
