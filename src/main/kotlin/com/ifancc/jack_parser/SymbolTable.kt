@@ -16,8 +16,13 @@ class SymbolTable() {
         insert("THIS", 3)
         insert("THAT", 4)
     }
+
     fun insert(name:String, value:Int){
         symbols.put(name, value)
+    }
+
+    fun getOrNull(name:String):Int?{
+        return symbols.get(name)
     }
 
 }

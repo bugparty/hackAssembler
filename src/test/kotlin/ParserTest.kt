@@ -1,7 +1,4 @@
-import com.ifancc.jack_parser.Parser
-import com.ifancc.jack_parser.isValidJackChar
-import com.ifancc.jack_parser.isValidLine
-import com.ifancc.jack_parser.removeInlineComment
+import com.ifancc.jack_parser.*
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -35,5 +32,30 @@ class ParserTest {
         val testStr2 = "@R0"
         val testStr2Result = testStr2
         assertEquals(testStr2Result, removeInlineComment(testStr2))
+    }
+    @Test
+    fun testParseJump(){
+        var node = CNode()
+        parseJump("JGT", node)
+        assertEquals(CJump.JGT, node.jump)
+        parseJump("JMP", node)
+        assertEquals(CJump.JMP, node.jump)
+    }
+    @Test
+    fun testParseComp(){
+        val node = CNode()
+        parseComp("-1", node)
+        assertEquals(CComp._neg1, node.comp)
+        parseComp("A-D", node)
+        assertEquals(CComp.AminusD, node.comp)
+    }
+
+    @Test
+    fun testParseDest(){
+        val node = CNode()
+        parseDest("A", node)
+        assertEquals(CDest.A, node.dest)
+        parseDest("AMD", node)
+        assertEquals(CDest.AMD, node.dest)
     }
 }
