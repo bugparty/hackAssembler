@@ -4,7 +4,6 @@ import java.io.BufferedReader
 import java.io.File
 import java.io.FileReader
 import java.io.IOException
-import java.lang.Exception
 import java.lang.RuntimeException
 
 fun isValidLine(str: String): Boolean {
@@ -42,10 +41,10 @@ val jumpTable = listOf(Triple("JGT", CJump.JGT, 1),
         Triple("JEQ", CJump.JEQ, 2), Triple("JGE", CJump.JGE, 3),
         Triple("JLT", CJump.JLT, 4), Triple("JNE", CJump.JNE, 5),
         Triple("JLE", CJump.JLE, 6), Triple("JMP", CJump.JMP, 7))
-val destTable = listOf(Triple("M", CDest.M, 1.shl(3)), Triple("D",CDest.D, 2.shl(3)),
-Triple("MD", CDest.MD, 3.shl(3)), Triple("A",CDest.A, 4.shl(3)),
+val destTable = listOf(Triple("M", CDest.M, 1.shl(3)), Triple("D", CDest.D, 2.shl(3)),
+        Triple("MD", CDest.MD, 3.shl(3)), Triple("A", CDest.A, 4.shl(3)),
         Triple("AM", CDest.AM, 5.shl(3)), Triple("AD", CDest.AD, 6.shl(3)),
-Triple("AMD", CDest.AMD, 7.shl(3)))
+        Triple("AMD", CDest.AMD, 7.shl(3)))
 
 val compTable = listOf(Triple("0", CComp._0, (42.shl(6))), Triple("1", CComp._1, 63.shl(6)),
         Triple("-1", CComp._neg1, 58.shl(6)), Triple("D", CComp.D, 12.shl(6)),
@@ -63,7 +62,7 @@ val compTable = listOf(Triple("0", CComp._0, (42.shl(6))), Triple("1", CComp._1,
         Triple("D|A", CComp.DandA, 21.shl(6)), Triple("D|M", CComp.DandM, 85.shl(6))
 )
 
-fun parseJump(line: String, node:CNode){
+fun parseJump(line: String, node: CNode) {
     for (predefined in jumpTable) {
         if (line.equals(predefined.first)) {
             node.jump = predefined.second
@@ -72,44 +71,46 @@ fun parseJump(line: String, node:CNode){
     }
 }
 
-fun parseComp(line:String, node:CNode){
-    for (predefined in compTable){
-        if(predefined.first.equals(line)){
+fun parseComp(line: String, node: CNode) {
+    for (predefined in compTable) {
+        if (predefined.first.equals(line)) {
             node.comp = predefined.second
             break
         }
     }
 }
 
-fun parseDest(line: String, node: CNode){
-    for (predefined in destTable){
-        if(predefined.first.equals(line)){
+fun parseDest(line: String, node: CNode) {
+    for (predefined in destTable) {
+        if (predefined.first.equals(line)) {
             node.dest = predefined.second
             break
         }
     }
 }
 
-fun parseCinstruction(line: String): CNode {
-    val node = CNode(next = null)
+/*
+only parse single C instruction such as "JGT" or "A=D-1"
+ */
+fun parseCinstruction(line: String, node:CNode){
     when (line[0]) {
         'J' -> {
             //jump command
-            for (predefined in jumpTable) {
-                if (line.equals(predefined.first)) {
-                    node.jump = predefined.second
-                    return node
-                }
-            }
+            parseJump(line, node)
         }
         else -> {
             val equalIdx = line.indexOf('=')
             if (equalIdx == -1) {
                 //only comp
+                parseComp(line, node)
+            } else {
+                val destLine = line.substring(0, equalIdx)
+                val compLine = line.substring(equalIdx + 1)
+                parseDest(destLine, node)
+                parseComp(compLine, node)
             }
         }
     }
-    return node
 }
 
 class Parser {
@@ -182,6 +183,7 @@ class Parser {
                         val node = ANode(Type.A, AType.DIRECT_NUMBER, next = null, directValue = directNumber)
                         curAstNode.next = node
                         curAstNode = curAstNode.next as ANode
+
                     } else {
                         //Symbol like
                         val symbol = line.substring(1).trim()
@@ -197,21 +199,27 @@ class Parser {
                         curAstNode.next = node
                         curAstNode = curAstNode.next as ANode
                     }
+                    i++
                 }
                 '(' -> {
+                    i++
                     //skip
                 }
                 else -> {
                     //C instruction
                     val semicolon = line.indexOf(';')
+                    val node = CNode()
                     if (semicolon == -1) {
-
+                        parseCinstruction(line, node)
                     } else {
                         val line1 = line.substring(0, semicolon)
                         val line2 = line.substring(semicolon + 1)
+                        parseCinstruction(line1, node)
+                        parseCinstruction(line2, node)
                     }
-
-
+                    curAstNode.next = node
+                    curAstNode = curAstNode.next as CNode
+                    i++
                 }
             }
         }

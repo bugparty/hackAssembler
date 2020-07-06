@@ -38,4 +38,15 @@ class CNode(type: Type = Type.C, next: BaseASTNode? = null, comp: CComp? = null,
     var comp = comp
     var dest = dest
     var jump = jump
+    override fun equals(other: Any?): Boolean {
+        if(other is CNode){
+            return other.comp == comp && other.dest == dest && other.jump == jump
+        }else{
+            return false
+        }
+    }
+
+    override fun toString(): String {
+        return super.toString() + "comp:$comp,dest:$dest,jump:$jump"
+    }
 }
