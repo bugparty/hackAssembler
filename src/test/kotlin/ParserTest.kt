@@ -28,12 +28,9 @@ class ParserTest {
 
     @Test
     fun testRemoveInlineComment() {
-        val testStr1 = "D=D-M            // D = first number - second number"
-        val testStr1Result = "D=D-M"
-        assertEquals(testStr1Result, removeInlineComment(testStr1))
-        val testStr2 = "@R0"
-        val testStr2Result = testStr2
-        assertEquals(testStr2Result, removeInlineComment(testStr2))
+        assertEquals("D=D-M", removeInlineComment("D=D-M            // D = first number - second number"))
+        assertEquals("@R0", removeInlineComment("@R0"))
+        assertEquals("(ball.new)", removeInlineComment("(ball.new)"))
     }
 
     @Test
@@ -72,4 +69,5 @@ class ParserTest {
         parseCinstruction("D=D-1", node1)
         assertEquals(CNode(dest = CDest.D, comp = CComp.Dminus1), node1)
     }
+
 }

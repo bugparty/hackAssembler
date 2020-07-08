@@ -6,6 +6,15 @@ import java.io.FileReader
 import java.io.IOException
 import java.lang.RuntimeException
 
+class BadAstParseException(rawLine: String, reason: String, lineno: Int?=null) : RuntimeException(){
+    val rawLine = rawLine
+    val reason = reason
+    val lineno = lineno
+    override fun toString(): String {
+        return super.toString()+" lineno:${lineno ?:"unknown"} rawLine:$rawLine,reason:$reason"
+    }
+}
+
 fun isValidLine(str: String): Boolean {
     if (str.startsWith("//")) return false
     if (str.isEmpty()) return false
@@ -14,7 +23,7 @@ fun isValidLine(str: String): Boolean {
 
 fun isValidJackChar(char: Char): Boolean {
     return when (char) {
-        in "@()=;_-+|&!" -> true
+        in "@()=;_-+|&!." -> true
         in "0123456789" -> true
         in "abcdefghijklmnopqrstuvwsyz" -> true
         in "ABCDEFGHIJKLMNOPQRSTUVWSYZ" -> true
@@ -37,56 +46,16 @@ fun removeInlineComment(str: String): String {
     return str.substring(0, i)
 }
 
-val jumpTable = listOf(Triple("JGT", CJump.JGT, 1),
-        Triple("JEQ", CJump.JEQ, 2), Triple("JGE", CJump.JGE, 3),
-        Triple("JLT", CJump.JLT, 4), Triple("JNE", CJump.JNE, 5),
-        Triple("JLE", CJump.JLE, 6), Triple("JMP", CJump.JMP, 7))
-val destTable = listOf(Triple("M", CDest.M, 1.shl(3)), Triple("D", CDest.D, 2.shl(3)),
-        Triple("MD", CDest.MD, 3.shl(3)), Triple("A", CDest.A, 4.shl(3)),
-        Triple("AM", CDest.AM, 5.shl(3)), Triple("AD", CDest.AD, 6.shl(3)),
-        Triple("AMD", CDest.AMD, 7.shl(3)))
-
-val compTable = listOf(Triple("0", CComp._0, (42.shl(6))), Triple("1", CComp._1, 63.shl(6)),
-        Triple("-1", CComp._neg1, 58.shl(6)), Triple("D", CComp.D, 12.shl(6)),
-        Triple("A", CComp.A, 48.shl(6)), Triple("M", CComp.M, 112.shl(6)),
-        Triple("!D", CComp.notD, 13.shl(6)), Triple("!A", CComp.notA, 49.shl(6)),
-        Triple("!M", CComp.notM, 113.shl(6)), Triple("-D", CComp.negD, 15.shl(6)),
-        Triple("-A", CComp.negA, 51.shl(6)), Triple("-M", CComp.negM, 115.shl(6)),
-        Triple("D+1", CComp.Dplus1, 31.shl(6)), Triple("A+1", CComp.Aplus1, 55.shl(6)),
-        Triple("M+1", CComp.Mplus1, 119.shl(6)), Triple("D-1", CComp.Dminus1, 14.shl(6)),
-        Triple("A-1", CComp.Aminus1, 50.shl(6)), Triple("M-1", CComp.Mminus1, 114.shl(6)),
-        Triple("D+A", CComp.DplusA, 2.shl(6)), Triple("D+M", CComp.DminusM, 66.shl(6)),
-        Triple("D-A", CComp.DminusA, 19.shl(6)), Triple("D-M", CComp.DminusM, 83.shl(6)),
-        Triple("A-D", CComp.AminusD, 7.shl(6)), Triple("M-D", CComp.MminusD, 71.shl(6)),
-        Triple("D&A", CComp.DandA, 0), Triple("D&M", CComp.DandM, 64.shl(6)),
-        Triple("D|A", CComp.DandA, 21.shl(6)), Triple("D|M", CComp.DandM, 85.shl(6))
-)
-
 fun parseJump(line: String, node: CNode) {
-    for (predefined in jumpTable) {
-        if (line.equals(predefined.first)) {
-            node.jump = predefined.second
-            break
-        }
-    }
+    node.jump = StrToObjTable.jumpTable[line]?.second ?: throw BadAstParseException(line, "instruction not found")
 }
 
 fun parseComp(line: String, node: CNode) {
-    for (predefined in compTable) {
-        if (predefined.first.equals(line)) {
-            node.comp = predefined.second
-            break
-        }
-    }
+    node.comp = StrToObjTable.compTable[line]?.second ?: throw BadAstParseException(line, "instruction not found")
 }
 
 fun parseDest(line: String, node: CNode) {
-    for (predefined in destTable) {
-        if (predefined.first.equals(line)) {
-            node.dest = predefined.second
-            break
-        }
-    }
+    node.dest = StrToObjTable.destTable[line]?.second ?: throw BadAstParseException(line, "instruction not found")
 }
 
 /*
@@ -114,7 +83,6 @@ fun parseCinstruction(line: String, node:CNode){
 }
 
 class Parser {
-    class BadAstException(rawLine: String, reason: String) : RuntimeException()
 
     val lines = ArrayList<String>()
     val astRoot = BaseASTNode(Type.None, null)
@@ -135,12 +103,16 @@ class Parser {
             val fileReader = FileReader(file)
             val bufferedReader = BufferedReader(fileReader)
             var line: String?
+            var lineCount = 0
             while (bufferedReader.readLine().also { line = it } != null) {
                 line?.let {
                     val striped = it.trim()
                     if (isValidLine(striped)) {
                         lines.add(removeInlineComment(striped))
+                    }else{
+                        //throw BadAstParseException(it, "preprocess error", lineno = lineCount)
                     }
+                    lineCount++
                 }
             }
 
@@ -159,9 +131,14 @@ class Parser {
         for ((index, line) in lines.withIndex()) {
             when (line[0]) {
                 '(' -> {
-                    val right = line.lastIndexOf(')')
-                    val symbol = line.substring(1, right).trim()
-                    symbols.insert(symbol, lineNumber + 1)
+                    try{
+                        val right = line.lastIndexOf(')')
+                        val symbol = line.substring(1, right).trim()
+                        symbols.insert(symbol, lineNumber)
+                    }catch (e: StringIndexOutOfBoundsException){
+                        throw BadAstParseException(line, "failed to match parenthesis", lineno=index)
+                    }
+
                 }
                 else -> {
                     lineNumber++
